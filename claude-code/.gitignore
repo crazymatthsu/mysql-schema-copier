@@ -1,0 +1,12 @@
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+
+# DACPACs are build artifacts extracted from an upstream server, never source.
+local-dev/mssql/dacpac/*.dacpac
+local-dev/mssql/dacpac/*.bacpac
+
+# Local-only overrides (passwords, host ports).
+.env
+*.local.yaml
+*.log

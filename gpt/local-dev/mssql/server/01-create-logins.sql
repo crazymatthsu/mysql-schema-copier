@@ -1,0 +1,11 @@
+USE master;
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.sql_logins WHERE name = N'${APP_LOGIN}')
+BEGIN
+    CREATE LOGIN [${APP_LOGIN}]
+    WITH PASSWORD = ${APP_PASSWORD_SQL},
+         CHECK_POLICY = OFF,
+         CHECK_EXPIRATION = OFF;
+END
+GO

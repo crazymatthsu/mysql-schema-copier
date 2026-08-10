@@ -1,0 +1,15 @@
+[versions]
+java = "21"
+mssqlJdbc = "13.4.0.jre11"
+picocli = "4.7.6"
+snakeyaml = "2.3"
+junit = "5.11.4"
+
+[libraries]
+mssql-jdbc = { module = "com.microsoft.sqlserver:mssql-jdbc", version.ref = "mssqlJdbc" }
+picocli = { module = "info.picocli:picocli", version.ref = "picocli" }
+picocli-codegen = { module = "info.picocli:picocli-codegen", version.ref = "picocli" }
+snakeyaml = { module = "org.yaml:snakeyaml", version.ref = "snakeyaml" }
+junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }
+junit-jupiter = { module = "org.junit.jupiter:junit-jupiter" }
+junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher" }

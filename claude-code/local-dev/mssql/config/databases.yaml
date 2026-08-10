@@ -1,0 +1,141 @@
+# Single source of truth for the local SQL Server clone.
+#
+# Everything else in this project is derived from this file: the podman container
+# arguments, compose.yaml (`local-db compose-config`), database creation options,
+# login/user provisioning, and the JDBC URLs used by the Java applications.
+#
+# Values here mirror the enterprise instance being cloned. When the enterprise
+# version/collation/compatibility level changes, change it here first.
+
+server:
+  # Namespaced so this project cannot adopt, restart or delete an unrelated SQL Server
+  # container that happens to be called "mssql" on the same machine.
+  containerName: mssql-local-clone
+  # The hostname stays "mssql": application containers on the same podman network reach
+  # it as jdbc:sqlserver://mssql:1433, exactly as they do upstream.
+  hostname: mssql
+  # Match the enterprise SQL Server major version rather than always taking the newest.
+  image: mcr.microsoft.com/mssql/server
+  tag: 2022-latest
+  # SQL Server container images are published for linux/amd64 only. On Apple Silicon
+  # podman runs them through emulation; leave this set so the pull is unambiguous.
+  platform: linux/amd64
+  edition: Developer
+  hostPort: 1433
+  # /var/opt/mssql lives on a named volume so recreating the container does not
+  # destroy the local databases.
+  volume: mssql-local-clone-data
+  # Server-level collation, applied at first container initialisation only.
+  collation: SQL_Latin1_General_CP1_CI_AS
+  memoryLimitMb: 4096
+  readyTimeoutSeconds: 420
+  saPasswordEnv: MSSQL_SA_PASSWORD
+  saPasswordDefault: "YourStrongLocalPassword!"
+
+# Server-level principals. Logins are NOT part of a database, so they are never
+# carried across by a DACPAC - they are re-created here, with local-only passwords.
+logins:
+  - name: trading_app
+    passwordEnv: TRADING_APP_PASSWORD
+    passwordDefault: "LocalTestPassword123!"
+    defaultDatabase: Trading
+  - name: orders_app
+    passwordEnv: ORDERS_APP_PASSWORD
+    passwordDefault: "LocalTestPassword123!"
+    defaultDatabase: Orders
+  - name: risk_app
+    passwordEnv: RISK_APP_PASSWORD
+    passwordDefault: "LocalTestPassword123!"
+    defaultDatabase: Risk
+  - name: refdata_app
+    passwordEnv: REFDATA_APP_PASSWORD
+    passwordDefault: "LocalTestPassword123!"
+    defaultDatabase: ReferenceData
+  - name: report_reader
+    passwordEnv: REPORT_READER_PASSWORD
+    passwordDefault: "LocalTestPassword123!"
+    defaultDatabase: ReferenceData
+
+# Databases are provisioned in the order listed. Cross-database views resolve their
+# references at CREATE time, so a database must appear after everything it reads:
+#   Orders -> Risk -> Trading -> ReferenceData
+databases:
+  - name: ReferenceData
+    collation: SQL_Latin1_General_CP1_CI_AS
+    compatibilityLevel: 150
+    readCommittedSnapshot: true
+    schemaDir: local-dev/mssql/schema/ReferenceData
+    seedDir: local-dev/mssql/seed/ReferenceData
+    users:
+      - login: trading_app
+        roles: [ref_reader, ref_executor]
+      - login: orders_app
+        roles: [ref_reader, ref_executor]
+      - login: risk_app
+        roles: [ref_reader]
+      # The reference-data loader is the only writer: instruments and prices arrive from
+      # the upstream feed, never from the trading applications.
+      - login: refdata_app
+        roles: [ref_reader, ref_writer, ref_executor]
+      - login: report_reader
+        roles: [ref_reader]
+
+  - name: Trading
+    collation: SQL_Latin1_General_CP1_CI_AS
+    compatibilityLevel: 150
+    readCommittedSnapshot: true
+    schemaDir: local-dev/mssql/schema/Trading
+    seedDir: local-dev/mssql/seed/Trading
+    users:
+      - login: trading_app
+        roles: [trading_reader, trading_writer, trading_executor]
+      - login: orders_app
+        roles: [trading_reader, trading_executor]
+      - login: risk_app
+        roles: [trading_reader]
+      - login: report_reader
+        roles: [trading_reader]
+
+  - name: Risk
+    collation: SQL_Latin1_General_CP1_CI_AS
+    compatibilityLevel: 150
+    readCommittedSnapshot: true
+    schemaDir: local-dev/mssql/schema/Risk
+    seedDir: local-dev/mssql/seed/Risk
+    users:
+      - login: trading_app
+        roles: [risk_reader, risk_executor]
+      - login: orders_app
+        roles: [risk_reader, risk_writer, risk_executor]
+      - login: risk_app
+        roles: [risk_reader, risk_writer, risk_executor]
+      - login: report_reader
+        roles: [risk_reader]
+
+  - name: Orders
+    collation: SQL_Latin1_General_CP1_CI_AS
+    compatibilityLevel: 150
+    readCommittedSnapshot: true
+    schemaDir: local-dev/mssql/schema/Orders
+    seedDir: local-dev/mssql/seed/Orders
+    users:
+      - login: trading_app
+        roles: [orders_reader, orders_writer, orders_executor]
+      - login: orders_app
+        roles: [orders_reader, orders_writer, orders_executor]
+      - login: risk_app
+        roles: [orders_reader]
+      - login: report_reader
+        roles: [orders_reader]
+
+# Scripts run against every database after schema + seed, to prove the clone behaves
+# like the enterprise instance (cross-database joins, procedures, roles, collation).
+validation:
+  scriptDir: local-dev/mssql/validate
+
+# Used by `local-db dacpac-extract` / `dacpac-publish`.
+dacpac:
+  outputDir: local-dev/mssql/dacpac
+  # Connection string template for the enterprise source instance. Override the host
+  # with --source-server; nothing here ever points at a real production server.
+  sourceServer: "enterprise-sql.mycorp.example"

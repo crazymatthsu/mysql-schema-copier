@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+#
+# One entry point for the local SQL Server clone.
+#
+#   ./local-env reset        rebuild everything: container, schema, logins, seed, validation
+#   ./local-env up           start the container and wait for it
+#   ./local-env provision    apply schema, security and seed data to a running container
+#   ./local-env validate     check the clone against databases.yaml and the validation scripts
+#   ./local-env status       what is running right now
+#   ./local-env down         stop and remove the container (--purge also deletes the data volume)
+#   ./local-env sql -d Orders -e "SELECT TOP 5 * FROM dbo.[Order]"
+#
+# Run `./local-env --help` for the full command list.
+#
+# The script builds the provisioner on demand. Set LOCAL_ENV_SKIP_BUILD=1 to skip the
+# Gradle up-to-date check when you know the build is current.
+
+set -euo pipefail
+
+cd "$(dirname "$0")"
+
+LAUNCHER="provisioner/build/install/local-db/bin/local-db"
+
+if [[ "${LOCAL_ENV_SKIP_BUILD:-0}" != "1" || ! -x "$LAUNCHER" ]]; then
+    ./gradlew --quiet --console=plain :provisioner:installDist
+fi
+
+exec "$LAUNCHER" "$@"

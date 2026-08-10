@@ -1,0 +1,36 @@
+# GENERATED FILE - do not edit.
+# Produced by: ./local-env compose-config
+# Source of truth: local-dev/mssql/config/databases.yaml
+#
+# Compose only starts the container. Schema, logins and seed data still come
+# from the provisioner:
+#
+#   podman compose up -d
+#   ./local-env provision
+#
+services:
+  mssql:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    platform: linux/amd64
+    container_name: mssql-local-clone
+    hostname: mssql
+    ports:
+      - "1433:1433"
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: "Developer"
+      MSSQL_SA_PASSWORD: "${MSSQL_SA_PASSWORD:-YourStrongLocalPassword!}"
+      MSSQL_COLLATION: "SQL_Latin1_General_CP1_CI_AS"
+      MSSQL_AGENT_ENABLED: "false"
+      TZ: "UTC"
+    volumes:
+      - mssql-local-clone-data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -Q 'SELECT 1' -b"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 60s
+
+volumes:
+  mssql-local-clone-data:
