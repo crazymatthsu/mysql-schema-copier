@@ -18,8 +18,16 @@ GRANT UPDATE ON OBJECT::dbo.OrderIdSeq TO orders_writer;
 GRANT UPDATE ON OBJECT::dbo.ExecutionIdSeq TO orders_writer;
 GO
 
-/* Orders are never hard-deleted, and the audit journal is append-only. */
+/*
+    Orders are never hard-deleted, and the audit journal is append-only.
+
+    The audit DENY covers UPDATE and DELETE only. INSERT is left alone deliberately: the
+    rows are written by dbo.trg_Order_Audit, and relying on ownership chaining to step over
+    a DENY would be a fragile thing to build the audit trail on. Nothing grants the
+    application INSERT on the audit schema either way, so it still cannot write there
+    directly.
+*/
 DENY DELETE ON OBJECT::dbo.[Order] TO orders_writer;
 DENY DELETE ON OBJECT::dbo.Execution TO orders_writer;
-DENY INSERT, UPDATE, DELETE ON SCHEMA::audit TO orders_writer;
+DENY UPDATE, DELETE ON SCHEMA::audit TO orders_writer;
 GO

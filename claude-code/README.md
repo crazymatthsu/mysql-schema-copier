@@ -232,6 +232,23 @@ podman machine ssh 'ls /proc/sys/fs/binfmt_misc/'
 On an x86-64 host (Linux, Windows, Intel Mac) none of this applies - `./local-env reset`
 works directly.
 
+## Verification status
+
+What has been exercised on the machine this was written on:
+
+- `./gradlew build` - both modules compile; the unit tests pass, including the eleven
+  `GO`-splitter cases.
+- `./local-env --help`, `status` and `compose-config` run against the real configuration.
+- The `linux/amd64` SQL Server image pulls and its userland runs; `sqlservr` itself
+  segfaults under that machine's QEMU emulation, so the container never reaches a listening
+  state.
+
+What that leaves unverified against a live server on this machine: the schema scripts, the
+provisioning and seeding flow, the validation suite, and the integration tests. They are
+written to run with `./local-env reset` followed by `./gradlew :trading-app:integrationTest`
+on any x86-64 host, or on a Rosetta-backed `applehv` Podman machine - see
+[Running on Apple Silicon](#running-on-apple-silicon).
+
 ## Troubleshooting
 
 **`SQL Server did not become ready`** - `./local-env logs --tail 100`. A segfault means the

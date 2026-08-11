@@ -88,7 +88,9 @@ BEGIN
     DECLARE @Decision   VARCHAR(8);
     DECLARE @ReasonCode VARCHAR(40);
 
-    IF @OrderQty % @LotSize <> 0
+    /* Lot check without the modulo operator: @OrderQty is DECIMAL, and % is only
+       reliable over integer types. */
+    IF @OrderQty <> FLOOR(@OrderQty / @LotSize) * @LotSize
     BEGIN
         SET @Decision = 'REJECTED';
         SET @ReasonCode = 'ODD_LOT';
